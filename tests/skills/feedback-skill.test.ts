@@ -38,6 +38,7 @@ describe("feedback rules skill template", () => {
 		expect(skillTemplate).toContain("`POST /api/skill-invocations` 的 payload 仅允许包含");
 		expect(skillTemplate).toContain("`started_at`：必须使用 UTC ISO 字符串");
 		expect(skillTemplate).toContain("`status`：`success`、`failed` 或 `unknown`");
+		expect(skillTemplate).toContain("请求非沙箱执行前不要先探测 server 是否存在或端口是否监听");
 	});
 
 	it("declares exact feedback payload parameter rules", () => {

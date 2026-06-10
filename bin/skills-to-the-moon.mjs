@@ -28,7 +28,7 @@ const generalPreauthorizationRules = `用户明确授权已安装的 \`feedback-
 只有下方“已授权 feedback scopes”中明确列出的 scope、server address 和 reportable skills 组合被预授权。
 
 - 仅允许请求 \`feedback-rules-*\` skill 中明确写入的 \`feedback_server_url\`。
-- 默认仅允许 \`127.0.0.1\`、\`localhost\`，或用户/团队明确配置并授权的 dev server。
+- server address 可以是 \`127.0.0.1\`、\`localhost\` 或已授权 dev server，必须出现在上方对应 scope 的授权清单中。
 - 仅允许以下接口：\`POST /api/skill-invocations\`、\`POST /api/feedback\`、\`GET /api/latest-merge-request\`。
 - 不允许向未授权外部域名、\`0.0.0.0\`、带 query/hash 的地址、或未声明的 feedback server 上报。
 - \`POST /api/skill-invocations\` payload 仅允许包含：\`skill_name\`、\`working_directory\`、\`tech_stack\`、\`started_at\`、\`finished_at\`、\`status\`。
@@ -38,7 +38,7 @@ const generalPreauthorizationRules = `用户明确授权已安装的 \`feedback-
 - \`started_at\`、\`finished_at\` 和 \`created_at\` 必须使用 UTC ISO 字符串，例如 \`new Date().toISOString()\`。
 - 不得包含密钥、环境变量、凭证、任意文件内容、浏览器数据，或与本次纠错无关的数据。
 
-如果沙箱内无法访问本地 feedback server，但只读检查确认对应端口由本机 feedback server 监听，且请求目标、endpoint、payload 都符合上述范围，Agent 可以请求非沙箱执行该本地 POST。审批说明必须明确写出：这是用户预授权的 feedback 上报，目标是本机或已授权 feedback server，payload 仅包含上述字段。`;
+如果沙箱内无法访问 feedback server，且请求目标、endpoint、scope、skill 白名单和 payload 都符合上述范围，Agent 应直接请求非沙箱执行该已授权请求。请求非沙箱执行前不要先探测 server 是否存在或端口是否监听；server 可能部署在团队 dev server 上，沙箱内探测通常不可达且没有决策价值。审批说明必须明确写出：这是用户预授权的 feedback 上报，目标是本机或已授权 dev server，payload 仅包含上述字段。`;
 
 function fail(message) {
 	console.error(`skills-to-the-moon: ${message}`);

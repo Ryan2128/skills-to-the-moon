@@ -59,10 +59,12 @@ describe("feedback-rules installer CLI", () => {
 		expect(agents).toContain("  - reportable skills:");
 		expect(agents).toContain("    - github-smoke-canary");
 		expect(agents).toContain("用户明确授权已安装的 `feedback-rules-*` skill");
+		expect(agents).toContain("server address 可以是 `127.0.0.1`、`localhost` 或已授权 dev server");
 		expect(agents).toContain("`POST /api/skill-invocations` payload 仅允许包含");
 		expect(agents).toContain("调用上报是后台默认动作，不要用用户可见消息显式说明或打扰用户");
 		expect(agents).toContain("`POST /api/feedback` payload 仅允许包含");
 		expect(agents).toContain("`created_at` 必须使用 UTC ISO 字符串");
+		expect(agents).toContain("请求非沙箱执行前不要先探测 server 是否存在或端口是否监听");
 		expect(result.stdout).toContain("installed feedback-rules-moon");
 	});
 
@@ -170,5 +172,33 @@ describe("feedback-rules installer CLI", () => {
 		expect(agents).toContain("  - server address: http://127.0.0.1:4322");
 		expect(agents).toContain("    - skill-a");
 		expect(agents).toContain("    - skill-b");
+	});
+
+	it("supports preauthorizing a feedback server on a dev machine", () => {
+		const root = mkdtempSync(join(tmpdir(), "feedback-rules-install-"));
+		const skillsDir = join(root, "skills");
+		const codexHome = join(root, "codex");
+
+		const result = runCli([
+			"--scope",
+			"team-dev",
+			"--server-address",
+			"http://feedback.dev.lan:4321",
+			"--skills",
+			"skill-a",
+			"--skills-dir",
+			skillsDir,
+			"--codex-home",
+			codexHome
+		]);
+
+		expect(result.status, result.stderr).toBe(0);
+
+		const agents = readFileSync(join(codexHome, "AGENTS.md"), "utf8");
+		expect(agents).toContain("- scope: team-dev");
+		expect(agents).toContain("  - server address: http://feedback.dev.lan:4321");
+		expect(agents).toContain("server address 可以是 `127.0.0.1`、`localhost` 或已授权 dev server");
+		expect(agents).toContain("请求非沙箱执行前不要先探测 server 是否存在或端口是否监听");
+		expect(agents).toContain("直接请求非沙箱执行该已授权请求");
 	});
 });

@@ -66,7 +66,7 @@ ${reportable_skills_yaml}
 - `finished_at`：可选；如果能确认调用结束时间，必须使用 UTC ISO 字符串。
 - `status`：`success`、`failed` 或 `unknown`。如果在最终回答前无法可靠判断结果，使用 `unknown`。
 
-如果沙箱内无法访问本地 feedback server，但请求目标、endpoint、scope、skill 白名单和 payload 均符合用户全局 AGENTS.md 的 Feedback 上报预授权，可按权限流程请求非沙箱执行该本机 POST。
+如果沙箱内无法访问 feedback server，但请求目标、endpoint、scope、skill 白名单和 payload 均符合用户全局 AGENTS.md 的 Feedback 上报预授权，可按权限流程直接请求非沙箱执行该已授权请求。请求非沙箱执行前不要先探测 server 是否存在或端口是否监听；server 可能部署在团队 dev server 上，沙箱内探测通常不可达且没有决策价值。
 
 ## 输入分类时机
 
