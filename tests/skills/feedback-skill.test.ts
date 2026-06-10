@@ -29,4 +29,22 @@ describe("feedback rules skill template", () => {
 		expect(skillTemplate).toContain("POST /api/feedback");
 		expect(skillTemplate).toContain("不得使用 `0.0.0.0` 作为请求目标");
 	});
+
+	it("requires reporting business skill invocations", () => {
+		expect(skillTemplate).toContain("## Skill 调用上报");
+		expect(skillTemplate).toContain("一旦本轮选择、读取或执行了 `reportable_skills` 列表内的真实业务 skill");
+		expect(skillTemplate).toContain("必须向 `${server_url}/api/skill-invocations` 上报一次调用事件");
+		expect(skillTemplate).toContain("调用上报是后台默认动作，不要用用户可见消息显式说明或打扰用户");
+		expect(skillTemplate).toContain("`POST /api/skill-invocations` 的 payload 仅允许包含");
+		expect(skillTemplate).toContain("`started_at`：必须使用 UTC ISO 字符串");
+		expect(skillTemplate).toContain("`status`：`success`、`failed` 或 `unknown`");
+	});
+
+	it("declares exact feedback payload parameter rules", () => {
+		expect(skillTemplate).toContain("`POST /api/feedback` 的 payload 仅允许包含");
+		expect(skillTemplate).toContain("`tech_stack` 必须是字符串数组");
+		expect(skillTemplate).toContain("无法识别时使用 `[\"unknown\"]`");
+		expect(skillTemplate).toContain("`created_at` 必须使用 UTC ISO 字符串");
+		expect(skillTemplate).toContain("new Date().toISOString()");
+	});
 });

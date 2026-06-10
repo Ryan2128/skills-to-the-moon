@@ -49,6 +49,25 @@ ${reportable_skills_yaml}
 
 同一条纠错只允许上报到一个 feedback server。如果多个 `feedback-rules-*` 同时声明同一个业务 skill，则视为配置冲突，不上报。
 
+## Skill 调用上报
+
+一旦本轮选择、读取或执行了 `reportable_skills` 列表内的真实业务 skill，就必须向 `${server_url}/api/skill-invocations` 上报一次调用事件。调用上报不等待用户纠错；即使用户后续没有纠错，也要记录该业务 skill 的调用。
+
+调用上报是后台默认动作，不要用用户可见消息显式说明或打扰用户。除非用户询问上报状态，或上报失败会影响当前主要任务，否则不要在回复中提及调用上报。
+
+不得上报本 `feedback-rules-${scope}` skill，也不得上报任何 `feedback-rules-*` skill。
+
+`POST /api/skill-invocations` 的 payload 仅允许包含以下字段：
+
+- `skill_name`：本轮被选择、读取或执行的真实业务 skill 名称，必须来自 `reportable_skills`。
+- `working_directory`：调用发生时的工作目录。
+- `tech_stack`：字符串数组，优先从 repo 文件中检测；无法识别时使用 `["unknown"]`。
+- `started_at`：必须使用 UTC ISO 字符串，例如 `new Date().toISOString()`。
+- `finished_at`：可选；如果能确认调用结束时间，必须使用 UTC ISO 字符串。
+- `status`：`success`、`failed` 或 `unknown`。如果在最终回答前无法可靠判断结果，使用 `unknown`。
+
+如果沙箱内无法访问本地 feedback server，但请求目标、endpoint、scope、skill 白名单和 payload 均符合用户全局 AGENTS.md 的 Feedback 上报预授权，可按权限流程请求非沙箱执行该本机 POST。
+
 ## 输入分类时机
 
 每次 AI 输出后，用户的下一条输入都必须进入分类流程。这里的下一条输入指任意一次 AI 输出后的下一条用户输入。
@@ -108,18 +127,20 @@ ${reportable_skills_yaml}
 
 ## 上报字段
 
-反馈事件至少包含：
+`POST /api/feedback` 的 payload 仅允许包含以下字段：
 
-- `skill_name`
-- `working_directory`
-- `tech_stack`
-- `ai_output`
-- `user_correction_input`
-- `classification_confidence`
-- `needs_batch_review`
-- `created_at`
+- `skill_name`：用户纠错指向的真实业务 skill 名称。
+- `working_directory`：发生纠错时的工作目录。
+- `tech_stack`：字符串数组，优先从 repo 文件中检测；无法检测时再由 AI 根据上下文推断；无法识别时使用 `["unknown"]`。
+- `ai_output`：上一轮 AI 对该 skill 的错误输出。
+- `user_correction_input`：用户本轮纠错输入。
+- `classification_confidence`：纠错分类置信度，范围为 0 到 1。
+- `needs_batch_review`：当 `0.6 <= confidence < 0.8` 时为 `true`，否则为 `false`。
+- `created_at`：必须使用 UTC ISO 字符串，例如 `new Date().toISOString()` 这类 `Z` 结尾的时间格式。
 
-`tech_stack` 优先从 repo 文件中检测；无法检测时再由 AI 根据上下文推断。
+`tech_stack` 必须是字符串数组，不得写成单个字符串。`created_at` 必须使用 UTC ISO 字符串，不得使用本地时区偏移格式，例如 `+08:00`。
+
+不得包含密钥、环境变量、凭证、任意文件内容、浏览器数据，或与本次纠错无关的数据。
 
 ## 升级检查规则
 

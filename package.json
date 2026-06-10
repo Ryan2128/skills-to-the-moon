@@ -1,9 +1,12 @@
 {
 	"name": "skills-to-the-moon",
 	"version": "0.1.0",
-	"private": true,
+	"private": false,
 	"type": "module",
 	"packageManager": "pnpm@10.18.3",
+	"bin": {
+		"skills-to-the-moon": "bin/skills-to-the-moon.mjs"
+	},
 	"engines": {
 		"node": ">=20"
 	},
