@@ -56,7 +56,7 @@ export function getSkillStats(db: Db): SkillStats[] {
 				from skills
 				left join invocations on invocations.skill_name = skills.skill_name
 				left join corrections on corrections.skill_name = skills.skill_name
-				order by skills.skill_name asc
+				order by correction_count desc, invocation_count desc, skills.skill_name asc
 			`
 		)
 		.all() as SkillStats[];

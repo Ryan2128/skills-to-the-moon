@@ -1,5 +1,5 @@
 import type { Db } from "../db/connection.js";
-import { getLatestMergeRequest, type MergeRequestRow } from "../domain/repositories.js";
+import { countFeedbackByIdRange, getLatestMergeRequest, type MergeRequestRow } from "../domain/repositories.js";
 import { escapeHtml, renderLayout } from "./layout.js";
 
 function formatStatus(status: MergeRequestRow["status"]): string {
@@ -20,7 +20,9 @@ function renderPurgeForm(mergeRequest: MergeRequestRow): string {
 		? `已在 ${escapeHtml(mergeRequest.purged_at)} 清理`
 		: mergeRequest.status === "merged"
 			? "将删除该 MR 覆盖范围内的纠错反馈，并记录审计日志。"
-			: "只有合并后的 MR 可以清理反馈。";
+			: mergeRequest.status === "closed"
+				? "已关闭的 MR 不能清理反馈。"
+				: "只有合并后的 MR 可以清理反馈。";
 
 	return `<form method="post" action="/api/admin/merge-requests/${escapeHtml(mergeRequest.id)}/purge" class="actions">
 					<button type="submit"${canPurge ? "" : " disabled"}>清理反馈</button>
@@ -28,7 +30,13 @@ function renderPurgeForm(mergeRequest: MergeRequestRow): string {
 				</form>`;
 }
 
-function renderMergeRequest(mergeRequest: MergeRequestRow): string {
+function renderMergeRequest(db: Db, mergeRequest: MergeRequestRow): string {
+	const estimatedPurgeCount = countFeedbackByIdRange(
+		db,
+		mergeRequest.feedback_id_start,
+		mergeRequest.feedback_id_end
+	);
+
 	return `<section class="panel">
 				<h2>最新 MR 元信息</h2>
 				<dl class="kv">
@@ -48,6 +56,8 @@ function renderMergeRequest(mergeRequest: MergeRequestRow): string {
 					<dd>${escapeHtml(mergeRequest.opened_at)}</dd>
 					<dt>合并时间</dt>
 					<dd>${escapeHtml(mergeRequest.merged_at ?? "未合并")}</dd>
+					<dt>预计清理记录数</dt>
+					<dd>${escapeHtml(estimatedPurgeCount)}</dd>
 				</dl>
 				${renderPurgeForm(mergeRequest)}
 			</section>`;
@@ -56,7 +66,7 @@ function renderMergeRequest(mergeRequest: MergeRequestRow): string {
 export function renderAdminPage(db: Db): string {
 	const latestMergeRequest = getLatestMergeRequest(db);
 	const mergeRequestSection = latestMergeRequest
-		? renderMergeRequest(latestMergeRequest)
+		? renderMergeRequest(db, latestMergeRequest)
 		: `<p class="empty">暂无合并请求</p>`;
 
 	return renderLayout({

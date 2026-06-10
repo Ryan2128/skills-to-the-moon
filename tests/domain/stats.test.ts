@@ -54,6 +54,13 @@ describe("skill stats", () => {
 			started_at: "2026-06-11T00:03:00.000Z",
 			status: "success"
 		});
+		createSkillInvocation(db, {
+			skill_name: "superpowers:receiving-code-review",
+			working_directory: "/repo/project",
+			tech_stack: ["typescript"],
+			started_at: "2026-06-11T00:04:00.000Z",
+			status: "success"
+		});
 
 		for (const skillName of [
 			"superpowers:brainstorming",
@@ -75,23 +82,29 @@ describe("skill stats", () => {
 
 		const stats = getSkillStats(db);
 
-		expect(stats).toHaveLength(3);
+		expect(stats).toHaveLength(4);
 		expect(stats[0]).toMatchObject({
-			skill_name: "superpowers:brainstorming",
-			invocation_count: 3,
-			correction_count: 1
-		});
-		expect(stats[0]?.correction_rate).toBeCloseTo(1 / 3);
-		expect(stats[1]).toEqual({
 			skill_name: "superpowers:test-driven-development",
 			invocation_count: 1,
 			correction_count: 2,
 			correction_rate: 2
 		});
+		expect(stats[1]).toMatchObject({
+			skill_name: "superpowers:brainstorming",
+			invocation_count: 3,
+			correction_count: 1
+		});
+		expect(stats[1]?.correction_rate).toBeCloseTo(1 / 3);
 		expect(stats[2]).toEqual({
 			skill_name: "superpowers:verification-before-completion",
 			invocation_count: 0,
 			correction_count: 1,
+			correction_rate: 0
+		});
+		expect(stats[3]).toEqual({
+			skill_name: "superpowers:receiving-code-review",
+			invocation_count: 1,
+			correction_count: 0,
 			correction_rate: 0
 		});
 	});

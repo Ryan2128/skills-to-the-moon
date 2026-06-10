@@ -228,6 +228,15 @@ export function getMergeRequestById(db: Db, id: number): MergeRequestRow | null 
 	return row ?? null;
 }
 
+export function countFeedbackByIdRange(db: Db, feedbackIdStart: number, feedbackIdEnd: number): number {
+	const row = db.prepare("select count(*) as count from feedback_events where id >= ? and id <= ?").get(
+		feedbackIdStart,
+		feedbackIdEnd
+	) as { count: number };
+
+	return row.count;
+}
+
 export function purgeFeedbackForMergeRequest(db: Db, mergeRequest: MergeRequestRow, purgedAt: string): number {
 	if (mergeRequest.status !== "merged") {
 		throw new Error("Only merged merge requests can purge feedback");
