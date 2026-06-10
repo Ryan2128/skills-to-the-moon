@@ -48,4 +48,9 @@ describe("feedback rules skill template", () => {
 		expect(skillTemplate).toContain("`created_at` 必须使用 UTC ISO 字符串");
 		expect(skillTemplate).toContain("new Date().toISOString()");
 	});
+
+	it("declares the local last-seen hash storage path for upgrade checks", () => {
+		expect(skillTemplate).toContain("本地已处理 hash 固定记录在 `~/.agents/skills/.feedback-upgrades/${scope}.last-seen`");
+		expect(skillTemplate).toContain("同步完成后才能把最新 `head_commit_hash` 写入该文件");
+	});
 });

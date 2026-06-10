@@ -49,6 +49,7 @@ function printHelp() {
 	console.log(`Usage:
   npx skills-to-the-moon --scope <scope> --server-address <url>
   npx skills-to-the-moon install-feedback-rules --scope <scope> --server-address <url>
+  npx skills-to-the-moon sync-upgrades --scope <scope> --server-address <url>
 
 Options:
   --scope <scope>             feedback-rules scope, for example github-smoke
@@ -56,18 +57,29 @@ Options:
   --server-url <url>          alias for --server-address
   --skills-dir <path>         override install directory, defaults to ~/.agents/skills
   --codex-home <path>         override Codex home, defaults to ~/.codex
-  --skills <a,b>              override reportable skills, defaults to bundled skills`);
+  --skills <a,b>              override reportable skills, defaults to bundled skills
+  --repo <owner/repo>         sync-upgrades source repo, for example Ryan2128/skills-to-the-moon
+  --ref <ref>                 sync-upgrades git ref, defaults to main
+  --source-dir <path>         sync-upgrades local source repo or skills directory
+  --state-dir <path>          sync-upgrades last-seen directory, defaults to <skills-dir>/.feedback-upgrades`);
 }
 
 function parseArgs(rawArgs) {
 	const args = [...rawArgs];
-	if (args[0] === "install-feedback-rules") {
-		args.shift();
+	const supportedCommands = new Set(["install-feedback-rules", "sync-upgrades"]);
+	let command = "install-feedback-rules";
+
+	if (args[0] && !args[0].startsWith("--")) {
+		command = args.shift();
 	}
 
 	if (args.includes("--help") || args.includes("-h")) {
 		printHelp();
 		process.exit(0);
+	}
+
+	if (!supportedCommands.has(command)) {
+		fail(`unknown command: ${command}`);
 	}
 
 	const options = {};
@@ -93,7 +105,7 @@ function parseArgs(rawArgs) {
 		index += 1;
 	}
 
-	return options;
+	return { command, options };
 }
 
 function requireOption(options, keys) {
@@ -289,4 +301,182 @@ function installFeedbackRules(options) {
 	console.log(`${appended ? "appended" : "kept"} Feedback preauthorization in ${agentsPath}`);
 }
 
-installFeedbackRules(parseArgs(process.argv.slice(2)));
+function readJsonFile(path) {
+	try {
+		return JSON.parse(readFileSync(path, "utf8"));
+	} catch (error) {
+		fail(`failed to read JSON file ${path}: ${error instanceof Error ? error.message : "unknown error"}`);
+	}
+}
+
+async function readLatestMergeRequest(options, serverUrl) {
+	if (options["latest-mr-file"]) {
+		return readJsonFile(options["latest-mr-file"]);
+	}
+
+	const endpoint = `${serverUrl.replace(/\/+$/, "")}/api/latest-merge-request`;
+	let response;
+
+	try {
+		response = await fetch(endpoint, {
+			headers: {
+				accept: "application/json"
+			}
+		});
+	} catch (error) {
+		fail(`failed to request latest merge request: ${error instanceof Error ? error.message : "unknown error"}`);
+	}
+
+	if (response.status === 404) {
+		return null;
+	}
+
+	if (!response.ok) {
+		const body = await response.text();
+		fail(`failed to request latest merge request: HTTP ${response.status}${body ? ` ${body}` : ""}`);
+	}
+
+	return response.json();
+}
+
+function readLastSeenHash(lastSeenPath) {
+	if (!existsSync(lastSeenPath)) {
+		return null;
+	}
+
+	const value = readFileSync(lastSeenPath, "utf8").trim();
+	return value.length > 0 ? value : null;
+}
+
+function repoToCloneUrl(repo) {
+	if (/^https?:\/\//.test(repo)) {
+		return repo;
+	}
+
+	if (/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo)) {
+		return `https://github.com/${repo}.git`;
+	}
+
+	fail("--repo must be an owner/repo pair or an http(s) git URL");
+}
+
+function cloneRepoForSync(options) {
+	const repo = requireOption(options, ["repo"]);
+	const ref = options.ref ?? "main";
+	const tempRoot = mkdtempSync(join(tmpdir(), "skills-sync-repo-"));
+	const repoDir = join(tempRoot, "repo");
+	const result = spawnSync("git", ["clone", "--depth", "1", "--branch", ref, repoToCloneUrl(repo), repoDir], {
+		encoding: "utf8"
+	});
+
+	if (result.status !== 0) {
+		rmSync(tempRoot, { force: true, recursive: true });
+		if (result.stderr) {
+			process.stderr.write(result.stderr);
+		}
+		fail(`failed to clone ${repo} at ${ref}`);
+	}
+
+	return { repoDir, tempRoot };
+}
+
+function resolveSkillsSource(options) {
+	if (options["source-dir"]) {
+		const sourceDir = options["source-dir"];
+		const nestedSkillsDir = join(sourceDir, "skills");
+		return {
+			skillsRoot: existsSync(nestedSkillsDir) ? nestedSkillsDir : sourceDir,
+			cleanupRoot: null
+		};
+	}
+
+	if (options.repo) {
+		const { repoDir, tempRoot } = cloneRepoForSync(options);
+		const skillsRoot = join(repoDir, "skills");
+		return { skillsRoot, cleanupRoot: tempRoot };
+	}
+
+	return { skillsRoot: bundledSkillsDir, cleanupRoot: null };
+}
+
+function listInstallableSkillDirs(skillsRoot) {
+	if (!existsSync(skillsRoot)) {
+		fail(`skills source directory does not exist: ${skillsRoot}`);
+	}
+
+	return readdirSync(skillsRoot, { withFileTypes: true })
+		.filter((entry) => entry.isDirectory())
+		.filter((entry) => existsSync(join(skillsRoot, entry.name, "SKILL.md")))
+		.map((entry) => entry.name)
+		.sort();
+}
+
+function installAllSkillsFromSource(skillsRoot, skillsDir) {
+	const skillNames = listInstallableSkillDirs(skillsRoot);
+
+	if (skillNames.length === 0) {
+		fail(`no skills found in ${skillsRoot}`);
+	}
+
+	mkdirSync(skillsDir, { recursive: true });
+	for (const skillName of skillNames) {
+		const source = join(skillsRoot, skillName);
+		const destination = join(skillsDir, skillName);
+		rmSync(destination, { force: true, recursive: true });
+		cpSync(source, destination, { recursive: true });
+	}
+
+	return skillNames;
+}
+
+async function syncUpgrades(options) {
+	const scope = requireOption(options, ["scope"]);
+	const serverUrl = requireOption(options, ["server-address", "server-url"]);
+	const skillsDir = options["skills-dir"] ?? join(homedir(), ".agents", "skills");
+	const stateDir = options["state-dir"] ?? join(skillsDir, ".feedback-upgrades");
+	const lastSeenPath = join(stateDir, `${scope}.last-seen`);
+	const latest = await readLatestMergeRequest(options, serverUrl);
+
+	if (!latest) {
+		console.log(`no merge request recorded for scope ${scope}`);
+		return;
+	}
+
+	const latestHash = latest.head_commit_hash;
+	if (!latestHash || typeof latestHash !== "string") {
+		fail("latest merge request is missing head_commit_hash");
+	}
+
+	const lastSeenHash = readLastSeenHash(lastSeenPath);
+	if (lastSeenHash === latestHash) {
+		console.log(`no new skill upgrade for scope ${scope}; latest hash already recorded at ${lastSeenPath}`);
+		return;
+	}
+
+	if (latest.status !== "merged") {
+		fail(`latest merge request is not merged: ${latest.status}`);
+	}
+
+	const { skillsRoot, cleanupRoot } = resolveSkillsSource(options);
+	try {
+		const skillNames = installAllSkillsFromSource(skillsRoot, skillsDir);
+		mkdirSync(stateDir, { recursive: true });
+		writeFileSync(lastSeenPath, `${latestHash}\n`);
+
+		console.log(`installed ${skillNames.length} skills to ${skillsDir}`);
+		console.log(`recorded last-seen hash for ${scope} at ${lastSeenPath}`);
+		console.log(`latest merge request: ${latest.mr_url ?? "unknown"}`);
+	} finally {
+		if (cleanupRoot) {
+			rmSync(cleanupRoot, { force: true, recursive: true });
+		}
+	}
+}
+
+const { command, options } = parseArgs(process.argv.slice(2));
+
+if (command === "sync-upgrades") {
+	await syncUpgrades(options);
+} else {
+	installFeedbackRules(options);
+}

@@ -151,3 +151,5 @@ GET ${server_url}/api/latest-merge-request
 ```
 
 如果返回的 `head_commit_hash` 与本地已记录 hash 不同，则说明该 scope 的 skill 仓库存在新的升级候选。自动化应提示用户审查 MR 或同步仓库，不得自动合并。
+
+本地已处理 hash 固定记录在 `~/.agents/skills/.feedback-upgrades/${scope}.last-seen`。同步完成后才能把最新 `head_commit_hash` 写入该文件；不得在未完成 skill 全量安装或同步失败时提前写入。
