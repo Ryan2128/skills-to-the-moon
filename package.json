@@ -37,7 +37,8 @@
 		"src/",
 		"templates/",
 		"LICENSE",
-		"README.md"
+		"README.md",
+		"README.zh-CN.md"
 	],
 	"bin": {
 		"skills-to-the-moon": "bin/skills-to-the-moon.mjs"
