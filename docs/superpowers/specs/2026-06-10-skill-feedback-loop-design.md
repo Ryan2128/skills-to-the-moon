@@ -48,6 +48,8 @@ Agent 云任务
   -> 使用反馈规则 skill 的升级规则
   -> 定期检查 server 最新 MR 元信息
   -> 判断 skill 仓库是否有新升级候选
+  -> 对已合并且未处理的 MR 执行 skill 全量同步
+  -> 同步成功后写入本地 last-seen hash
 ```
 
 系统默认服务一个自部署 skill 仓库，不支持多仓库和多团队隔离。owner 就是该 skill 仓库的 owner。
@@ -77,6 +79,7 @@ Agent 云任务
 - 什么时候判断用户输入是否为纠错。
 - 如何区分纠错、引导、补充、混合和未知输入。
 - 什么时候允许上报。
+- 当 feedback server 部署在本机或团队 dev server，且沙箱内不可达时，如何按预授权直接请求非沙箱执行，不做 server 存在性或端口探测。
 - 如何检查 server 最新 MR 元信息。
 - 如何判断本地 skill 仓库是否有待吸收的升级。
 
@@ -257,6 +260,24 @@ GET /api/latest-merge-request
 
 - 用户本地自动化判断是否有新 MR。
 - 系统管理页面判断是否有合并后的反馈可清理。
+
+用户本地自动化必须把已处理 hash 记录在固定位置：
+
+```text
+~/.agents/skills/.feedback-upgrades/<scope>.last-seen
+```
+
+如果 latest MR 的 `head_commit_hash` 与 last-seen 不同，且 MR 状态为 `merged`，本地自动化可以执行全量 skill 同步。同步完成后才能写入最新 hash；未合并、同步失败或用户拒绝同步时，不得提前更新 last-seen。
+
+推荐线上同步命令：
+
+```bash
+npx skills-to-the-moon sync-upgrades \
+  --scope <scope> \
+  --server-address <server-address> \
+  --repo <owner>/<repo> \
+  --ref main
+```
 
 ### 记录 MR 元信息
 
@@ -507,6 +528,8 @@ server 不得部分静默删除。清理过程需要记录成功删除数量；�
 - 系统管理清理入口只允许已合并 MR 清理。
 - 小迭代和大迭代槽位判断。
 - 大迭代不等待未合并小迭代 MR。
+- 本地升级同步只处理已合并且未记录 last-seen 的 MR。
+- 本地升级同步成功后才写入 `~/.agents/skills/.feedback-upgrades/<scope>.last-seen`。
 
 ## 已确定取舍
 
@@ -520,3 +543,5 @@ server 不得部分静默删除。清理过程需要记录成功删除数量；�
 - 大迭代不等待未合并小迭代 MR。
 - 默认单 skill 仓库、自部署。
 - 不默认脱敏。
+- 本地升级检查使用 `~/.agents/skills/.feedback-upgrades/<scope>.last-seen` 记录已处理 hash。
+- `sync-upgrades` 执行全量 skill 安装，不只安装单个被修改的 skill。

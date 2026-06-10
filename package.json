@@ -1,9 +1,44 @@
 {
 	"name": "skills-to-the-moon",
 	"version": "0.1.0",
+	"description": "Self-hosted feedback loops for Agent skills: report corrections, monitor usage, open upgrade PRs, and sync skills locally.",
 	"private": false,
 	"type": "module",
 	"packageManager": "pnpm@10.18.3",
+	"keywords": [
+		"ai-agent",
+		"agent-skills",
+		"feedback-loops",
+		"agent",
+		"skills",
+		"self-hosted",
+		"automation",
+		"developer-tools",
+		"codex",
+		"skill-management",
+		"fastify",
+		"sqlite"
+	],
+	"homepage": "https://github.com/Ryan2128/skills-to-the-moon#readme",
+	"bugs": {
+		"url": "https://github.com/Ryan2128/skills-to-the-moon/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Ryan2128/skills-to-the-moon.git"
+	},
+	"license": "MIT",
+	"files": [
+		"bin/",
+		"docs/",
+		"dist/",
+		"scripts/",
+		"skills/",
+		"src/",
+		"templates/",
+		"LICENSE",
+		"README.md"
+	],
 	"bin": {
 		"skills-to-the-moon": "bin/skills-to-the-moon.mjs"
 	},

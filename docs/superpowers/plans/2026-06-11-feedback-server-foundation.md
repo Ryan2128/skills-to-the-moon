@@ -28,6 +28,13 @@
 
 本计划不实现 Agent 云任务中的 AI 归纳、分支创建、MR 创建，也不实现用户本地自动化。那两个子系统在独立计划中实现。
 
+执行后补丁：
+
+- feedback rules 已从固定 `skills/feedback-rules` 调整为动态模板 `templates/feedback-rules`，安装时生成 `feedback-rules-${scope}`。
+- 已新增 CLI `install-feedback-rules`，负责安装 scoped feedback rules 并写入全局 Feedback 上报预授权。
+- 已新增 CLI `sync-upgrades`，负责读取 latest MR、全量同步 `skills/*`，并在同步成功后写入 `~/.agents/skills/.feedback-upgrades/<scope>.last-seen`。
+- 本地自动化检查升级已从延后范围中部分落地；Agent 云任务的小迭代/大迭代 AI 归纳和 MR 创建仍属于后续自动化范围。
+
 ## 文件结构
 
 创建或修改以下文件：
@@ -62,10 +69,10 @@
   监控页面渲染。
 - Create: `src/server/web/admin.ts`  
   系统管理页面渲染。
-- Create: `skills/feedback-rules/SKILL.md`  
-  feedback skill 注入规则。
-- Create: `skills/feedback-rules/EXAMPLES.md`  
-  feedback skill 示例。
+- Create: `templates/feedback-rules/SKILL.md`
+  scoped feedback rules 模板，打包后生成 `feedback-rules-${scope}`。
+- Create: `templates/feedback-rules/EXAMPLES.md`
+  scoped feedback rules 示例模板。
 - Create: `scripts/validate-feedback-skill.mjs`  
   校验 feedback skill 关键规则是否存在。
 - Create: `tests/db/schema.test.ts`  
@@ -1976,7 +1983,7 @@ Expected: 输出为空。若存在变更，先阅读 diff，确认它属于前�
 ## 自审结果
 
 - Spec 覆盖：本计划覆盖 feedback skill、server API、监控页面、CSV 导出、最新 MR 元信息、MR 元信息回写和系统管理清理入口。
-- 延后范围：Agent 云任务的小迭代/大迭代执行、AI 归纳、分支/MR 创建、用户本地自动化检查将在后续独立计划中实现。
+- 延后范围：Agent 云任务的小迭代/大迭代执行、AI 归纳、分支/MR 创建仍将在后续独立计划中实现。用户本地自动化检查已通过 `sync-upgrades` 提供 MVP 命令。
 - 占位符扫描：本文档不使用待补充占位符；每个代码步骤给出明确文件、代码或命令。
 - 类型一致性：API 字段与设计文档保持一致；MR 标题解析字段使用 `iteration_type`、`feedback_id_start`、`feedback_id_end`。
 - 风险：Task 1 会安装新依赖，执行时必须先向用户请求审批。
