@@ -14,6 +14,25 @@ function formatStatus(status: MergeRequestRow["status"]): string {
 	return "打开";
 }
 
+function isSafeHttpUrl(value: string): boolean {
+	try {
+		const url = new URL(value);
+		return url.protocol === "http:" || url.protocol === "https:";
+	} catch {
+		return false;
+	}
+}
+
+function renderMergeRequestUrl(value: string): string {
+	const escaped = escapeHtml(value);
+
+	if (!isSafeHttpUrl(value)) {
+		return `<span class="warning">${escaped}</span>`;
+	}
+
+	return `<a href="${escaped}">${escaped}</a>`;
+}
+
 function renderPurgeForm(mergeRequest: MergeRequestRow): string {
 	const canPurge = mergeRequest.status === "merged" && !mergeRequest.purged_at;
 	const reason = mergeRequest.purged_at
@@ -43,7 +62,7 @@ function renderMergeRequest(db: Db, mergeRequest: MergeRequestRow): string {
 					<dt>标题</dt>
 					<dd>${escapeHtml(mergeRequest.title)}</dd>
 					<dt>地址</dt>
-					<dd><a href="${escapeHtml(mergeRequest.mr_url)}">${escapeHtml(mergeRequest.mr_url)}</a></dd>
+					<dd>${renderMergeRequestUrl(mergeRequest.mr_url)}</dd>
 					<dt>Commit</dt>
 					<dd>${escapeHtml(mergeRequest.head_commit_hash)}</dd>
 					<dt>迭代类型</dt>

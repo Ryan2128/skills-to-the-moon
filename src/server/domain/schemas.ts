@@ -3,6 +3,13 @@ import { z } from "zod";
 const isoDateTime = z.iso.datetime();
 const nonEmptyString = z.string().min(1);
 const positiveInteger = z.number().int().positive();
+const httpUrl = z.url().refine(
+	(value) => {
+		const url = new URL(value);
+		return url.protocol === "http:" || url.protocol === "https:";
+	},
+	{ message: "URL must use http or https" }
+);
 
 export const skillInvocationInputSchema = z.object({
 	skill_name: nonEmptyString,
@@ -26,7 +33,7 @@ export const feedbackInputSchema = z.object({
 
 export const mergeRequestInputSchema = z
 	.object({
-		mr_url: z.url(),
+		mr_url: httpUrl,
 		title: nonEmptyString,
 		head_commit_hash: nonEmptyString,
 		iteration_type: z.enum(["minor", "major"]),

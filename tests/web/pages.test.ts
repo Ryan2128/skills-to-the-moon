@@ -185,4 +185,25 @@ describe("web pages", () => {
 		expect(response.body).toContain("<button type=\"submit\" disabled>清理反馈</button>");
 		expect(response.body).toContain("已在 2026-06-11T00:30:00.000Z 清理");
 	});
+
+	it("renders unsafe merge request URLs as text instead of links", async () => {
+		const { app, db } = testContext();
+
+		upsertMergeRequest(db, {
+			mr_url: "javascript:alert(1)",
+			title: "[skills-feedback][minor][feedback:1-3] 2026-06-11 skill updates",
+			head_commit_hash: "badcafe",
+			iteration_type: "minor",
+			feedback_id_start: 1,
+			feedback_id_end: 3,
+			status: "open",
+			opened_at: "2026-06-11T00:10:00.000Z"
+		});
+
+		const response = await app.inject({ method: "GET", url: "/admin" });
+
+		expect(response.statusCode).toBe(200);
+		expect(response.body).toContain("javascript:alert(1)");
+		expect(response.body).not.toContain('href="javascript:alert(1)"');
+	});
 });

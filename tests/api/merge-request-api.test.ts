@@ -94,6 +94,27 @@ describe("merge request API", () => {
 		expect(response.statusCode).toBe(400);
 	});
 
+	it("rejects merge request URLs with unsafe protocols", async () => {
+		const app = testApp();
+
+		const response = await app.inject({
+			method: "POST",
+			url: "/api/merge-requests",
+			payload: {
+				mr_url: "javascript:alert(1)",
+				title: "[skills-feedback][minor][feedback:1-2] 2026-06-11 skill updates",
+				head_commit_hash: "abc123",
+				iteration_type: "minor",
+				feedback_id_start: 1,
+				feedback_id_end: 2,
+				status: "open",
+				opened_at: "2026-06-11T00:10:00.000Z"
+			}
+		});
+
+		expect(response.statusCode).toBe(400);
+	});
+
 	it("rejects merge request titles that do not match the payload", async () => {
 		const app = testApp();
 
