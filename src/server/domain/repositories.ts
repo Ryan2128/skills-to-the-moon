@@ -238,8 +238,16 @@ export function countFeedbackByIdRange(db: Db, feedbackIdStart: number, feedback
 }
 
 export function purgeFeedbackForMergeRequest(db: Db, mergeRequest: MergeRequestRow, purgedAt: string): number {
+	if (mergeRequest.iteration_type !== "major") {
+		throw new Error("Only major merge requests can purge feedback");
+	}
+
 	if (mergeRequest.status !== "merged") {
 		throw new Error("Only merged merge requests can purge feedback");
+	}
+
+	if (!mergeRequest.merged_at) {
+		throw new Error("Merged merge requests must have merged_at before purging feedback");
 	}
 
 	if (mergeRequest.purged_at) {

@@ -1,4 +1,4 @@
-import Fastify from "fastify";
+import Fastify, { type FastifyRequest } from "fastify";
 
 import type { Db } from "./db/connection.js";
 import { toCsv } from "./domain/csv.js";
@@ -24,6 +24,7 @@ import { renderDashboardPage } from "./web/dashboard.js";
 
 type BuildAppOptions = {
 	db: Db;
+	adminToken?: string;
 };
 
 const feedbackCsvHeaders: Array<
@@ -57,21 +58,61 @@ type FeedbackCsvQuery = {
 	to?: string;
 };
 
+type AdminPurgeQuery = {
+	admin_token?: string;
+};
+
+type AdminPurgeBody = {
+	admin_token?: string;
+};
+
+const feedbackRulesSkillName = "feedback-rules";
+const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;
+
 function parsePositiveIntegerId(rawId: string): number | null {
 	const id = Number(rawId);
 
 	return Number.isInteger(id) && id > 0 ? id : null;
 }
 
+function normalizeCsvDateBoundary(value: string, boundary: "from" | "to"): string {
+	if (!dateOnlyPattern.test(value)) {
+		return value;
+	}
+
+	return boundary === "from" ? `${value}T00:00:00.000Z` : `${value}T23:59:59.999Z`;
+}
+
+function readAdminToken(request: FastifyRequest): string | undefined {
+	const query = request.query as AdminPurgeQuery;
+	const body = request.body as AdminPurgeBody | undefined;
+	const headerValue = request.headers["x-admin-token"];
+
+	if (Array.isArray(headerValue)) {
+		return headerValue[0] ?? body?.admin_token ?? query.admin_token;
+	}
+
+	return headerValue ?? body?.admin_token ?? query.admin_token;
+}
+
+function isReservedFeedbackSkill(skillName: string): boolean {
+	return skillName === feedbackRulesSkillName;
+}
+
 export function buildApp(options: BuildAppOptions) {
 	const app = Fastify({ logger: false });
+
+	app.addContentTypeParser("application/x-www-form-urlencoded", { parseAs: "string" }, (_request, body, done) => {
+		const rawBody = typeof body === "string" ? body : body.toString("utf8");
+		done(null, Object.fromEntries(new URLSearchParams(rawBody).entries()));
+	});
 
 	app.get("/", async (_request, reply) => {
 		return reply.type("text/html; charset=utf-8").send(renderDashboardPage(options.db));
 	});
 
 	app.get("/admin", async (_request, reply) => {
-		return reply.type("text/html; charset=utf-8").send(renderAdminPage(options.db));
+		return reply.type("text/html; charset=utf-8").send(renderAdminPage(options.db, options.adminToken));
 	});
 
 	app.post("/api/skill-invocations", async (request, reply) => {
@@ -82,6 +123,10 @@ export function buildApp(options: BuildAppOptions) {
 				error: "Invalid skill invocation payload",
 				details: parsed.error.flatten()
 			});
+		}
+
+		if (isReservedFeedbackSkill(parsed.data.skill_name)) {
+			return reply.code(400).send({ error: "feedback-rules skill is reserved and must not be reported" });
 		}
 
 		const id = createSkillInvocation(options.db, parsed.data);
@@ -99,6 +144,10 @@ export function buildApp(options: BuildAppOptions) {
 			});
 		}
 
+		if (isReservedFeedbackSkill(parsed.data.skill_name)) {
+			return reply.code(400).send({ error: "feedback-rules skill is reserved and must not be reported" });
+		}
+
 		const id = createFeedbackEvent(options.db, parsed.data);
 
 		return reply.code(201).send({ id });
@@ -111,7 +160,9 @@ export function buildApp(options: BuildAppOptions) {
 			return reply.code(400).send({ error: "from and to query parameters are required" });
 		}
 
-		const rows = listFeedbackByDateRange(options.db, query.from, query.to).map((row) => ({
+		const from = normalizeCsvDateBoundary(query.from, "from");
+		const to = normalizeCsvDateBoundary(query.to, "to");
+		const rows = listFeedbackByDateRange(options.db, from, to).map((row) => ({
 			id: row.id,
 			skill_name: row.skill_name,
 			working_directory: row.working_directory,
@@ -213,6 +264,14 @@ export function buildApp(options: BuildAppOptions) {
 
 		if (!mergeRequest) {
 			return reply.code(404).send({ error: "Merge request not found" });
+		}
+
+		if (!options.adminToken) {
+			return reply.code(403).send({ error: "Admin token is not configured" });
+		}
+
+		if (readAdminToken(request) !== options.adminToken) {
+			return reply.code(403).send({ error: "Invalid admin token" });
 		}
 
 		try {

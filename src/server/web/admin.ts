@@ -33,23 +33,54 @@ function renderMergeRequestUrl(value: string): string {
 	return `<a href="${escaped}">${escaped}</a>`;
 }
 
-function renderPurgeForm(mergeRequest: MergeRequestRow): string {
-	const canPurge = mergeRequest.status === "merged" && !mergeRequest.purged_at;
-	const reason = mergeRequest.purged_at
-		? `已在 ${escapeHtml(mergeRequest.purged_at)} 清理`
-		: mergeRequest.status === "merged"
-			? "将删除该 MR 覆盖范围内的纠错反馈，并记录审计日志。"
-			: mergeRequest.status === "closed"
-				? "已关闭的 MR 不能清理反馈。"
-				: "只有合并后的 MR 可以清理反馈。";
+function getPurgeReason(mergeRequest: MergeRequestRow, adminToken?: string): string {
+	if (mergeRequest.purged_at) {
+		return `已在 ${escapeHtml(mergeRequest.purged_at)} 清理`;
+	}
+
+	if (!adminToken) {
+		return "设置 SKILLS_FEEDBACK_ADMIN_TOKEN 后才能清理反馈。";
+	}
+
+	if (mergeRequest.status === "closed") {
+		return "已关闭的 MR 不能清理反馈。";
+	}
+
+	if (mergeRequest.status !== "merged") {
+		return "只有合并后的 MR 可以清理反馈。";
+	}
+
+	if (!mergeRequest.merged_at) {
+		return "合并后的 MR 必须记录合并时间后才能清理反馈。";
+	}
+
+	if (mergeRequest.iteration_type !== "major") {
+		return "只有大迭代 MR 合并后才能清理反馈。";
+	}
+
+	return "将删除该 MR 覆盖范围内的纠错反馈，并记录审计日志。";
+}
+
+function renderPurgeForm(mergeRequest: MergeRequestRow, adminToken?: string): string {
+	const canPurge =
+		Boolean(adminToken) &&
+		mergeRequest.iteration_type === "major" &&
+		mergeRequest.status === "merged" &&
+		Boolean(mergeRequest.merged_at) &&
+		!mergeRequest.purged_at;
+	const reason = getPurgeReason(mergeRequest, adminToken);
+	const tokenInput = adminToken
+		? `<input type="hidden" name="admin_token" value="${escapeHtml(adminToken)}">`
+		: "";
 
 	return `<form method="post" action="/api/admin/merge-requests/${escapeHtml(mergeRequest.id)}/purge" class="actions">
+					${tokenInput}
 					<button type="submit"${canPurge ? "" : " disabled"}>清理反馈</button>
 					<span class="${canPurge ? "muted" : "warning"}">${reason}</span>
 				</form>`;
 }
 
-function renderMergeRequest(db: Db, mergeRequest: MergeRequestRow): string {
+function renderMergeRequest(db: Db, mergeRequest: MergeRequestRow, adminToken?: string): string {
 	const estimatedPurgeCount = countFeedbackByIdRange(
 		db,
 		mergeRequest.feedback_id_start,
@@ -78,14 +109,14 @@ function renderMergeRequest(db: Db, mergeRequest: MergeRequestRow): string {
 					<dt>预计清理记录数</dt>
 					<dd>${escapeHtml(estimatedPurgeCount)}</dd>
 				</dl>
-				${renderPurgeForm(mergeRequest)}
+				${renderPurgeForm(mergeRequest, adminToken)}
 			</section>`;
 }
 
-export function renderAdminPage(db: Db): string {
+export function renderAdminPage(db: Db, adminToken?: string): string {
 	const latestMergeRequest = getLatestMergeRequest(db);
 	const mergeRequestSection = latestMergeRequest
-		? renderMergeRequest(db, latestMergeRequest)
+		? renderMergeRequest(db, latestMergeRequest, adminToken)
 		: `<p class="empty">暂无合并请求</p>`;
 
 	return renderLayout({

@@ -11,7 +11,7 @@ mkdirSync(dirname(databasePath), { recursive: true });
 const db = createDatabase(databasePath);
 runMigrations(db);
 
-const app = buildApp({ db });
+const app = buildApp({ db, adminToken: process.env.SKILLS_FEEDBACK_ADMIN_TOKEN });
 const port = Number(process.env.PORT ?? 4321);
 const host = process.env.HOST ?? "127.0.0.1";
 

@@ -32,6 +32,27 @@ describe("feedback API", () => {
 		expect(response.json()).toEqual({ id: 1 });
 	});
 
+	it("rejects feedback-rules skill invocations", async () => {
+		const app = testApp();
+
+		const response = await app.inject({
+			method: "POST",
+			url: "/api/skill-invocations",
+			payload: {
+				skill_name: "feedback-rules",
+				working_directory: "/repo/project",
+				tech_stack: ["typescript"],
+				started_at: "2026-06-11T00:00:00.000Z",
+				status: "success"
+			}
+		});
+
+		expect(response.statusCode).toBe(400);
+		expect(response.json()).toEqual({
+			error: "feedback-rules skill is reserved and must not be reported"
+		});
+	});
+
 	it("records correction feedback", async () => {
 		const app = testApp();
 
@@ -52,6 +73,30 @@ describe("feedback API", () => {
 
 		expect(response.statusCode).toBe(201);
 		expect(response.json()).toEqual({ id: 1 });
+	});
+
+	it("rejects feedback-rules correction feedback", async () => {
+		const app = testApp();
+
+		const response = await app.inject({
+			method: "POST",
+			url: "/api/feedback",
+			payload: {
+				skill_name: "feedback-rules",
+				working_directory: "/repo/project",
+				tech_stack: ["typescript"],
+				ai_output: "output",
+				user_correction_input: "correction",
+				classification_confidence: 0.91,
+				needs_batch_review: false,
+				created_at: "2026-06-11T00:02:00.000Z"
+			}
+		});
+
+		expect(response.statusCode).toBe(400);
+		expect(response.json()).toEqual({
+			error: "feedback-rules skill is reserved and must not be reported"
+		});
 	});
 
 	it("rejects invalid feedback confidence", async () => {
@@ -105,6 +150,33 @@ describe("feedback API", () => {
 		);
 		expect(response.body).toContain("typescript;fastify");
 		expect(response.body).toContain('"output with, comma"');
+	});
+
+	it("exports feedback for a date-only CSV range", async () => {
+		const app = testApp();
+
+		await app.inject({
+			method: "POST",
+			url: "/api/feedback",
+			payload: {
+				skill_name: "superpowers:brainstorming",
+				working_directory: "/repo/project",
+				tech_stack: ["typescript"],
+				ai_output: "same day output",
+				user_correction_input: "不对",
+				classification_confidence: 0.88,
+				needs_batch_review: false,
+				created_at: "2026-06-11T18:02:00.000Z"
+			}
+		});
+
+		const response = await app.inject({
+			method: "GET",
+			url: "/api/feedback.csv?from=2026-06-11&to=2026-06-11"
+		});
+
+		expect(response.statusCode).toBe(200);
+		expect(response.body).toContain("same day output");
 	});
 
 	it("requires a CSV date range", async () => {

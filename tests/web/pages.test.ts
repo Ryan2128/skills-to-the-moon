@@ -9,13 +9,13 @@ import {
 	upsertMergeRequest
 } from "../../src/server/domain/repositories.js";
 
-function testContext() {
+function testContext(options: { adminToken?: string } = {}) {
 	const db = createDatabase(":memory:");
 	runMigrations(db);
 
 	return {
 		db,
-		app: buildApp({ db })
+		app: buildApp({ db, adminToken: options.adminToken })
 	};
 }
 
@@ -74,8 +74,8 @@ describe("web pages", () => {
 		expect(response.body).toContain("暂无合并请求");
 	});
 
-	it("renders latest merge request metadata and purge form", async () => {
-		const { app, db } = testContext();
+	it("renders latest major merge request metadata and purge form", async () => {
+		const { app, db } = testContext({ adminToken: "secret" });
 
 		for (const created_at of [
 			"2026-06-11T00:00:00.000Z",
@@ -96,9 +96,9 @@ describe("web pages", () => {
 
 		upsertMergeRequest(db, {
 			mr_url: "https://example.com/mr/7",
-			title: "[skills-feedback][minor][feedback:1-3] 2026-06-11 skill updates",
+			title: "[skills-feedback][major][feedback:1-3] 2026-06-11 skill review",
 			head_commit_hash: "abc1234",
-			iteration_type: "minor",
+			iteration_type: "major",
 			feedback_id_start: 1,
 			feedback_id_end: 3,
 			status: "merged",
@@ -110,16 +110,61 @@ describe("web pages", () => {
 
 		expect(response.statusCode).toBe(200);
 		expect(response.body).toContain("https://example.com/mr/7");
-		expect(response.body).toContain("[skills-feedback][minor][feedback:1-3] 2026-06-11 skill updates");
+		expect(response.body).toContain("[skills-feedback][major][feedback:1-3] 2026-06-11 skill review");
 		expect(response.body).toContain("abc1234");
 		expect(response.body).toContain("预计清理记录数");
 		expect(response.body).toContain("<dd>3</dd>");
 		expect(response.body).toContain('action="/api/admin/merge-requests/1/purge"');
+		expect(response.body).toContain('<input type="hidden" name="admin_token" value="secret">');
 		expect(response.body).toContain("<button type=\"submit\">清理反馈</button>");
 	});
 
-	it("disables purge for open merge requests", async () => {
+	it("disables purge when no admin token is configured", async () => {
 		const { app, db } = testContext();
+
+		upsertMergeRequest(db, {
+			mr_url: "https://example.com/mr/8",
+			title: "[skills-feedback][major][feedback:1-3] 2026-06-11 skill review",
+			head_commit_hash: "def5678",
+			iteration_type: "major",
+			feedback_id_start: 1,
+			feedback_id_end: 3,
+			status: "merged",
+			opened_at: "2026-06-11T00:10:00.000Z",
+			merged_at: "2026-06-11T00:20:00.000Z"
+		});
+
+		const response = await app.inject({ method: "GET", url: "/admin" });
+
+		expect(response.statusCode).toBe(200);
+		expect(response.body).toContain("<button type=\"submit\" disabled>清理反馈</button>");
+		expect(response.body).toContain("设置 SKILLS_FEEDBACK_ADMIN_TOKEN 后才能清理反馈。");
+	});
+
+	it("disables purge for merged minor merge requests", async () => {
+		const { app, db } = testContext({ adminToken: "secret" });
+
+		upsertMergeRequest(db, {
+			mr_url: "https://example.com/mr/8",
+			title: "[skills-feedback][minor][feedback:1-3] 2026-06-11 skill updates",
+			head_commit_hash: "def5678",
+			iteration_type: "minor",
+			feedback_id_start: 1,
+			feedback_id_end: 3,
+			status: "merged",
+			opened_at: "2026-06-11T00:10:00.000Z",
+			merged_at: "2026-06-11T00:20:00.000Z"
+		});
+
+		const response = await app.inject({ method: "GET", url: "/admin" });
+
+		expect(response.statusCode).toBe(200);
+		expect(response.body).toContain("<button type=\"submit\" disabled>清理反馈</button>");
+		expect(response.body).toContain("只有大迭代 MR 合并后才能清理反馈。");
+	});
+
+	it("disables purge for open merge requests", async () => {
+		const { app, db } = testContext({ adminToken: "secret" });
 
 		upsertMergeRequest(db, {
 			mr_url: "https://example.com/mr/8",
@@ -140,7 +185,7 @@ describe("web pages", () => {
 	});
 
 	it("disables purge for closed merge requests", async () => {
-		const { app, db } = testContext();
+		const { app, db } = testContext({ adminToken: "secret" });
 
 		upsertMergeRequest(db, {
 			mr_url: "https://example.com/mr/9",
