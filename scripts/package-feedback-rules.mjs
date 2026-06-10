@@ -73,6 +73,14 @@ function validateServerUrl(value) {
 		fail("server-url must not use 0.0.0.0 as request target");
 	}
 
+	if (url.search) {
+		fail("server-url must not include query parameters");
+	}
+
+	if (url.hash) {
+		fail("server-url must not include hash fragments");
+	}
+
 	return url.toString().replace(/\/$/, "");
 }
 

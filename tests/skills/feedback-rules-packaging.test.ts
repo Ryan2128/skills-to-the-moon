@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -85,6 +85,30 @@ describe("feedback-rules packager", () => {
 		);
 	});
 
+	it("packages reportable skills from a skills file", () => {
+		const outDir = mkdtempSync(join(tmpdir(), "feedback-rules-package-"));
+		const skillsFile = join(outDir, "skills.json");
+		writeFileSync(skillsFile, JSON.stringify({ skills: ["skill-a", "skill-b"] }));
+
+		const result = runPackager([
+			"--scope",
+			"moon",
+			"--server-url",
+			"http://127.0.0.1:4321",
+			"--skills-file",
+			skillsFile,
+			"--out-dir",
+			outDir
+		]);
+
+		expect(result.status).toBe(0);
+
+		const manifest = JSON.parse(readFileSync(join(outDir, "feedback-rules-moon", "manifest.json"), "utf8")) as {
+			reportable_skills: string[];
+		};
+		expect(manifest.reportable_skills).toEqual(["skill-a", "skill-b"]);
+	});
+
 	it("rejects unsafe scopes, server URLs, and feedback-rules skills", () => {
 		const outDir = mkdtempSync(join(tmpdir(), "feedback-rules-package-"));
 
@@ -114,7 +138,46 @@ describe("feedback-rules packager", () => {
 		expect(unsafeUrl.status).not.toBe(0);
 		expect(unsafeUrl.stderr).toContain("0.0.0.0");
 
-		const feedbackSkill = runPackager([
+		const urlWithQuery = runPackager([
+			"--scope",
+			"moon",
+			"--server-url",
+			"http://127.0.0.1:4321?token=bad",
+			"--skills",
+			"skill-a",
+			"--out-dir",
+			outDir
+		]);
+		expect(urlWithQuery.status).not.toBe(0);
+		expect(urlWithQuery.stderr).toContain("query");
+
+		const urlWithHash = runPackager([
+			"--scope",
+			"moon",
+			"--server-url",
+			"http://127.0.0.1:4321#section",
+			"--skills",
+			"skill-a",
+			"--out-dir",
+			outDir
+		]);
+		expect(urlWithHash.status).not.toBe(0);
+		expect(urlWithHash.stderr).toContain("hash");
+
+		const fixedFeedbackSkill = runPackager([
+			"--scope",
+			"moon",
+			"--server-url",
+			"http://127.0.0.1:4321",
+			"--skills",
+			"feedback-rules",
+			"--out-dir",
+			outDir
+		]);
+		expect(fixedFeedbackSkill.status).not.toBe(0);
+		expect(fixedFeedbackSkill.stderr).toContain("reportable skills");
+
+		const scopedFeedbackSkill = runPackager([
 			"--scope",
 			"moon",
 			"--server-url",
@@ -124,7 +187,20 @@ describe("feedback-rules packager", () => {
 			"--out-dir",
 			outDir
 		]);
-		expect(feedbackSkill.status).not.toBe(0);
-		expect(feedbackSkill.stderr).toContain("reportable skills");
+		expect(scopedFeedbackSkill.status).not.toBe(0);
+		expect(scopedFeedbackSkill.stderr).toContain("reportable skills");
+
+		const emptySkills = runPackager([
+			"--scope",
+			"moon",
+			"--server-url",
+			"http://127.0.0.1:4321",
+			"--skills",
+			",",
+			"--out-dir",
+			outDir
+		]);
+		expect(emptySkills.status).not.toBe(0);
+		expect(emptySkills.stderr).toContain("reportable skills must not be empty");
 	});
 });

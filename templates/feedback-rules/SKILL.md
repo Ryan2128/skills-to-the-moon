@@ -22,7 +22,7 @@ description: 用于 Agent 需要注入 ${scope} 范围内 skill 的纠错反馈�
 ${server_url}
 ```
 
-不得使用 `0.0.0.0` 作为请求目标，`0.0.0.0` 只能作为 server 监听地址。不得猜测、轮询或广播到其他 feedback server。
+不得使用 `0.0.0.0` 作为请求目标，`0.0.0.0` 只能作为 server 监听地址。server 地址不得包含 query 参数或 hash 片段。不得猜测、轮询或广播到其他 feedback server。
 
 请求接口：
 

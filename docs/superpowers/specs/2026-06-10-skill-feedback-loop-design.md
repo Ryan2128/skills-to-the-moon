@@ -130,9 +130,11 @@ Agent 云任务
 - 输入被判断为纠错或包含纠错的混合输入。
 - 纠错指向一个真实业务 skill。
 - 该 skill 是用户主动触发，或 AI 根据输入匹配调用过的 skill。
-- 该 skill 不是反馈规则 skill。
+- 该 skill 出现在当前 `feedback-rules-${scope}` 的 `reportable_skills` 白名单内。
+- 该 skill 不是当前 `feedback-rules-${scope}`，也不是任何 `feedback-rules-*`。
+- 未发现其他已安装 `feedback-rules-*` 同时声明该业务 skill。
 
-没有调用 skill 的普通对话不进入反馈上报。一次上报只记录需要纠错的 `skill_name`。
+没有调用 skill 的普通对话不进入反馈上报。纠错指向非白名单 skill 时不上报。多个 scoped feedback-rules 同时匹配同一个业务 skill 时不上报，避免污染多个 feedback server。一次上报只记录需要纠错的 `skill_name`。
 
 ## 技术栈识别
 
