@@ -19,6 +19,8 @@ import {
 	mergeRequestStatusInputSchema,
 	skillInvocationInputSchema
 } from "./domain/schemas.js";
+import { renderAdminPage } from "./web/admin.js";
+import { renderDashboardPage } from "./web/dashboard.js";
 
 type BuildAppOptions = {
 	db: Db;
@@ -63,6 +65,14 @@ function parsePositiveIntegerId(rawId: string): number | null {
 
 export function buildApp(options: BuildAppOptions) {
 	const app = Fastify({ logger: false });
+
+	app.get("/", async (_request, reply) => {
+		return reply.type("text/html; charset=utf-8").send(renderDashboardPage(options.db));
+	});
+
+	app.get("/admin", async (_request, reply) => {
+		return reply.type("text/html; charset=utf-8").send(renderAdminPage(options.db));
+	});
 
 	app.post("/api/skill-invocations", async (request, reply) => {
 		const parsed = skillInvocationInputSchema.safeParse(request.body);
