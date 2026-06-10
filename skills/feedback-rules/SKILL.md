@@ -12,6 +12,26 @@ description: 用于 Agent 需要注入 skill 纠错反馈上报规则、反馈�
 - 不得把本 skill 作为 skill_name 上报。
 - 用户纠错本 skill 时，不触发反馈上报。
 
+## 反馈服务地址
+
+默认 feedback server 请求地址为：
+
+```text
+http://127.0.0.1:4321
+```
+
+如果当前项目或自动化任务显式提供 `SKILLS_FEEDBACK_SERVER_URL`，优先使用该地址；否则使用默认地址。不得使用 `0.0.0.0` 作为请求目标，`0.0.0.0` 只能作为 server 监听地址。
+
+请求接口：
+
+```text
+POST /api/skill-invocations
+POST /api/feedback
+GET /api/latest-merge-request
+```
+
+发送请求时使用完整地址，例如 `POST http://127.0.0.1:4321/api/feedback`，并设置 `content-type: application/json`。
+
 ## 输入分类时机
 
 每次 AI 输出后，用户的下一条输入都必须进入分类流程。这里的下一条输入指任意一次 AI 输出后的下一条用户输入。

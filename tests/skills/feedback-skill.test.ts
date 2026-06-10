@@ -19,4 +19,11 @@ describe("feedback rules skill", () => {
 		expect(skill).toContain("只上报用户纠错指向的真实业务 skill");
 		expect(skill).toContain("没有调用 skill 的普通对话不上报");
 	});
+
+	it("declares feedback server request address and endpoints", () => {
+		expect(skill).toContain("http://127.0.0.1:4321");
+		expect(skill).toContain("POST /api/skill-invocations");
+		expect(skill).toContain("POST /api/feedback");
+		expect(skill).toContain("不得使用 `0.0.0.0` 作为请求目标");
+	});
 });

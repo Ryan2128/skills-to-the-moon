@@ -10,6 +10,10 @@ const requiredPhrases = [
 	"confidence < 0.6",
 	"只上报用户纠错指向的真实业务 skill",
 	"没有调用 skill 的普通对话不上报",
+	"http://127.0.0.1:4321",
+	"POST /api/skill-invocations",
+	"POST /api/feedback",
+	"不得使用 `0.0.0.0` 作为请求目标",
 	"GET /api/latest-merge-request"
 ];
 
