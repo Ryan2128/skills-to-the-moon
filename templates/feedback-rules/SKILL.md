@@ -1,26 +1,28 @@
 ---
-name: feedback-rules
-description: 用于 Agent 需要注入 skill 纠错反馈上报规则、反馈豁免规则和升级检查规则时；该 skill 是系统协议 skill，不参与反馈闭环。
+name: feedback-rules-${scope}
+description: 用于 Agent 需要注入 ${scope} 范围内 skill 的纠错反馈上报规则、反馈豁免规则和升级检查规则时；该 skill 是系统协议 skill，不参与反馈闭环。
 ---
 
-# 反馈规则
+# 反馈规则 ${scope}
 
 ## 自身豁免
 
+- 本 skill 名称为 `feedback-rules-${scope}`。
 - 本 skill 不计入反馈统计。
 - 本 skill 不接收自动反馈。
 - 不得把本 skill 作为 skill_name 上报。
+- 不得把任何 `feedback-rules-*` skill 作为 skill_name 上报。
 - 用户纠错本 skill 时，不触发反馈上报。
 
 ## 反馈服务地址
 
-默认 feedback server 请求地址为：
+本 skill 只向打包时指定的 feedback server 上报：
 
 ```text
-http://127.0.0.1:4321
+${server_url}
 ```
 
-如果当前项目或自动化任务显式提供 `SKILLS_FEEDBACK_SERVER_URL`，优先使用该地址；否则使用默认地址。不得使用 `0.0.0.0` 作为请求目标，`0.0.0.0` 只能作为 server 监听地址。
+不得使用 `0.0.0.0` 作为请求目标，`0.0.0.0` 只能作为 server 监听地址。不得猜测、轮询或广播到其他 feedback server。
 
 请求接口：
 
@@ -30,7 +32,22 @@ POST /api/feedback
 GET /api/latest-merge-request
 ```
 
-发送请求时使用完整地址，例如 `POST http://127.0.0.1:4321/api/feedback`，并设置 `content-type: application/json`。
+发送请求时使用完整地址，例如 `POST ${server_url}/api/feedback`，并设置 `content-type: application/json`。
+
+## 可反馈 skill 白名单
+
+只处理 `reportable_skills` 列表内 skill 的纠错：
+
+${reportable_skills_markdown}
+
+```yaml
+feedback_scope: ${scope}
+feedback_server_url: ${server_url}
+reportable_skills:
+${reportable_skills_yaml}
+```
+
+同一条纠错只允许上报到一个 feedback server。如果多个 `feedback-rules-*` 同时声明同一个业务 skill，则视为配置冲突，不上报。
 
 ## 输入分类时机
 
@@ -83,9 +100,11 @@ GET /api/latest-merge-request
 - 输入是 `correction`，或 `mixed` 且包含纠错。
 - 纠错指向一个真实业务 skill。
 - 该 skill 是用户主动触发，或 AI 根据输入匹配调用过的 skill。
-- 该 skill 不是本 feedback-rules skill。
+- 该 skill 出现在本 skill 的 `reportable_skills` 列表中。
+- 该 skill 不是本 `feedback-rules-${scope}` skill，也不是任何 `feedback-rules-*` skill。
+- 未发现其他 `feedback-rules-*` 同时声明该业务 skill。
 
-只上报用户纠错指向的真实业务 skill。没有调用 skill 的普通对话不上报。
+只上报用户纠错指向的真实业务 skill。没有调用 skill 的普通对话不上报。纠错指向非白名单 skill 时不上报。
 
 ## 上报字段
 
@@ -104,10 +123,10 @@ GET /api/latest-merge-request
 
 ## 升级检查规则
 
-本地自动化可以定期检查 feedback server 的最新 MR 元信息接口：
+本地自动化可以定期检查本 skill 打包指定 feedback server 的最新 MR 元信息接口：
 
 ```text
-GET /api/latest-merge-request
+GET ${server_url}/api/latest-merge-request
 ```
 
-如果返回的 `head_commit_hash` 与本地已记录 hash 不同，则说明 skill 仓库存在新的升级候选。自动化应提示用户审查 MR 或同步仓库，不得自动合并。
+如果返回的 `head_commit_hash` 与本地已记录 hash 不同，则说明该 scope 的 skill 仓库存在新的升级候选。自动化应提示用户审查 MR 或同步仓库，不得自动合并。

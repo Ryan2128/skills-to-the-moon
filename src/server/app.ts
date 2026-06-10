@@ -66,7 +66,7 @@ type AdminPurgeBody = {
 	admin_token?: string;
 };
 
-const feedbackRulesSkillName = "feedback-rules";
+const feedbackRulesSkillNamePattern = /^feedback-rules(?:-.+)?$/;
 const dateOnlyPattern = /^\d{4}-\d{2}-\d{2}$/;
 
 function parsePositiveIntegerId(rawId: string): number | null {
@@ -96,7 +96,7 @@ function readAdminToken(request: FastifyRequest): string | undefined {
 }
 
 function isReservedFeedbackSkill(skillName: string): boolean {
-	return skillName === feedbackRulesSkillName;
+	return feedbackRulesSkillNamePattern.test(skillName);
 }
 
 export function buildApp(options: BuildAppOptions) {

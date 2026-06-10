@@ -54,13 +54,22 @@ Agent 云任务
 
 ## Feedback Skill
 
-系统使用一个专门的反馈规则 skill 为 AI 注入反馈判断和上报规则。
+系统使用一个专门的反馈规则 skill 为 AI 注入反馈判断和上报规则。该 skill 不作为固定 `feedback-rules` 发布，而是在打包时按工具实例动态生成 `feedback-rules-${scope}`。
+
+打包时必须指定：
+
+- `scope`：生成的 skill 名称后缀，最终 skill 名为 `feedback-rules-${scope}`。
+- `server_url`：该 feedback 工具实例的 server 请求地址，直接写入生成后的 skill。
+- `reportable_skills`：该 feedback 工具实例负责接收纠错反馈的真实业务 skill 白名单。
+
+用户如果安装了多个 feedback 工具，每个工具都应安装自己的 `feedback-rules-${scope}`。Agent 判断纠错时，只允许由包含目标业务 skill 的 scoped feedback-rules 上报；如果多个 `feedback-rules-*` 同时声明同一个业务 skill，则视为配置冲突，不上报。
 
 该 skill 有特殊豁免：
 
 - 不计入反馈统计。
 - 不接收自动反馈。
 - 不作为 `skill_name` 上报。
+- 任何 `feedback-rules-*` 都不作为 `skill_name` 上报。
 - 用户纠错该 skill 的行为不触发反馈上报。
 
 它的职责是告诉 Agent Runtime：

@@ -13,6 +13,7 @@
 		"start": "node dist/src/server/index.js",
 		"test": "vitest run",
 		"typecheck": "tsc -p tsconfig.json --noEmit",
+		"package:feedback-rules": "node scripts/package-feedback-rules.mjs",
 		"validate:feedback-skill": "node scripts/validate-feedback-skill.mjs"
 	},
 	"dependencies": {
