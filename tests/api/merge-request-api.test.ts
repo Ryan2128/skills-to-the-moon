@@ -139,6 +139,22 @@ describe("merge request API", () => {
 		expect(response.statusCode).toBe(409);
 	});
 
+	it("returns 404 when updating a missing merge request status", async () => {
+		const app = testApp();
+
+		const response = await app.inject({
+			method: "PATCH",
+			url: "/api/merge-requests/99/status",
+			payload: {
+				status: "merged",
+				merged_at: "2026-06-11T00:20:00.000Z"
+			}
+		});
+
+		expect(response.statusCode).toBe(404);
+		expect(response.json()).toEqual({ error: "Merge request not found" });
+	});
+
 	it("updates merge request status and purges merged feedback", async () => {
 		const app = testApp();
 		await seedFeedback(app);

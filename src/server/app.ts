@@ -180,6 +180,12 @@ export function buildApp(options: BuildAppOptions) {
 			});
 		}
 
+		const mergeRequest = getMergeRequestById(options.db, id);
+
+		if (!mergeRequest) {
+			return reply.code(404).send({ error: "Merge request not found" });
+		}
+
 		updateMergeRequestStatus(options.db, id, parsed.data);
 
 		return reply.send({ id });

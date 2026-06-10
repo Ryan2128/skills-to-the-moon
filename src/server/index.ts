@@ -13,6 +13,7 @@ runMigrations(db);
 
 const app = buildApp({ db });
 const port = Number(process.env.PORT ?? 4321);
+const host = process.env.HOST ?? "127.0.0.1";
 
-await app.listen({ host: "0.0.0.0", port });
-console.log(`skills feedback server listening on http://localhost:${port}`);
+await app.listen({ host, port });
+console.log(`skills feedback server listening on http://${host}:${port}`);
