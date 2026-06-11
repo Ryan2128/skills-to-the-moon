@@ -40,7 +40,7 @@
 
 线上命令：
 
-npx {{package_name}} sync-upgrades \
+npx --yes --registry=https://registry.npmjs.org/ {{package_name}} sync-upgrades \
   --scope {{scope}} \
   --server-address {{server_address}} \
   --repo {{skill_repo}} \

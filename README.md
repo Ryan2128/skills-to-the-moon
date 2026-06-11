@@ -90,7 +90,7 @@ The server can run on your machine or on a team dev server. Package the address 
 ### Install scoped feedback rules
 
 ```bash
-npx skills-to-the-moon install-feedback-rules \
+npx --yes --registry=https://registry.npmjs.org/ skills-to-the-moon install-feedback-rules \
   --scope github-smoke \
   --server-address http://127.0.0.1:4321 \
   --skills github-smoke-canary
@@ -115,7 +115,7 @@ This command:
 ### Sync merged skill upgrades
 
 ```bash
-npx skills-to-the-moon sync-upgrades \
+npx --yes --registry=https://registry.npmjs.org/ skills-to-the-moon sync-upgrades \
   --scope github-smoke \
   --server-address http://127.0.0.1:4321 \
   --repo Ryan2128/skills-to-the-moon \
@@ -182,6 +182,13 @@ PATCH /api/merge-requests/:id/status
 POST  /api/admin/merge-requests/:id/purge
 ```
 
+API notes:
+
+- `POST /api/merge-requests` requires titles like `[skills-feedback][minor][feedback:1-10] ...` or `[skills-feedback][major][feedback:1-10] ...`.
+- `status: "merged"` requires `merged_at`; non-merged statuses must not set `merged_at`.
+- `POST /api/admin/merge-requests/:id/purge` requires `SKILLS_FEEDBACK_ADMIN_TOKEN` and accepts the token through `x-admin-token`, `admin_token` form body, or `admin_token` query.
+- Purge only works for merged `major` pull requests and records a purge audit entry.
+
 ## Project Layout
 
 ```text
@@ -216,20 +223,20 @@ pnpm run validate:feedback-skill
 npm pack --dry-run
 ```
 
-Check that the tarball includes `bin/`, `scripts/`, `templates/`, `skills/`, `docs/`, `dist/`, `README.md`, and `LICENSE`.
+Check that the tarball includes `bin/`, `scripts/`, `templates/`, `skills/`, `docs/`, `dist/`, `README.md`, `README.zh-CN.md`, and `LICENSE`.
 
 Publish:
 
 ```bash
-npm login
-npm publish
+npm login --registry=https://registry.npmjs.org/
+npm publish --registry=https://registry.npmjs.org/
 ```
 
 For updates:
 
 ```bash
 npm version patch
-npm publish
+npm publish --registry=https://registry.npmjs.org/
 git push --follow-tags
 ```
 

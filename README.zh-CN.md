@@ -90,7 +90,7 @@ server 可以跑在你的机器上，也可以跑在团队 dev server 上。把 
 ### 安装 scoped feedback rules
 
 ```bash
-npx skills-to-the-moon install-feedback-rules \
+npx --yes --registry=https://registry.npmjs.org/ skills-to-the-moon install-feedback-rules \
   --scope github-smoke \
   --server-address http://127.0.0.1:4321 \
   --skills github-smoke-canary
@@ -115,7 +115,7 @@ node bin/skills-to-the-moon.mjs install-feedback-rules \
 ### 同步已合并的 skill 升级
 
 ```bash
-npx skills-to-the-moon sync-upgrades \
+npx --yes --registry=https://registry.npmjs.org/ skills-to-the-moon sync-upgrades \
   --scope github-smoke \
   --server-address http://127.0.0.1:4321 \
   --repo Ryan2128/skills-to-the-moon \
@@ -182,6 +182,13 @@ PATCH /api/merge-requests/:id/status
 POST  /api/admin/merge-requests/:id/purge
 ```
 
+API 说明：
+
+- `POST /api/merge-requests` 要求标题类似 `[skills-feedback][minor][feedback:1-10] ...` 或 `[skills-feedback][major][feedback:1-10] ...`。
+- `status: "merged"` 必须带 `merged_at`；非 merged 状态不能设置 `merged_at`。
+- `POST /api/admin/merge-requests/:id/purge` 需要配置 `SKILLS_FEEDBACK_ADMIN_TOKEN`，并支持通过 `x-admin-token`、表单 body 的 `admin_token` 或 query 的 `admin_token` 传入。
+- purge 只允许作用于已合并的 `major` PR，并会记录 purge audit。
+
 ## 项目结构
 
 ```text
@@ -221,15 +228,15 @@ npm pack --dry-run
 发布：
 
 ```bash
-npm login
-npm publish
+npm login --registry=https://registry.npmjs.org/
+npm publish --registry=https://registry.npmjs.org/
 ```
 
 版本更新：
 
 ```bash
 npm version patch
-npm publish
+npm publish --registry=https://registry.npmjs.org/
 git push --follow-tags
 ```
 
